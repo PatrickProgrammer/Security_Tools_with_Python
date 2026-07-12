@@ -1,6 +1,27 @@
 from pathlib import Path
 
+detectionField = "severity"
+detectionValue = "ERROR"
+
 events = []
+rules = [
+    {
+        "name": "Failed Login",
+        "field": "action",
+        "value": "failed_login"
+    },
+    {
+        "name": "Error Event",
+        "field": "severity",
+        "value": "ERROR"
+    },
+    {
+        "name": "Blocked Action",
+        "field": "action",
+        "value": "blocked"
+    }
+]
+alerts = []
 
 log_path = Path(__file__).parent / "security.log"
 
@@ -63,3 +84,33 @@ for event in events:
 for ip, count in failed_login_counts.items():
     if count >= 2:
         print(f"ALERT: {ip} had {count} failed login attempts")
+
+
+for event in events:
+    if event[detectionField] == detectionValue:
+        print(event)
+
+
+for rule in rules:
+    for event in events:
+        if event[rule["field"]] == rule["value"]:
+            print(f'ALERT:{rule["name"]}')
+            print(event)
+
+
+alert = {
+    "rule_name" : rule["name"],
+    "event" : event
+}
+alerts.append(alert)
+
+for rule in rules:
+    for event in events:
+        if event[rule["field"]] == rule["value"]:
+            alert = {
+                "rule_name" : rule["name"],
+                "event" : event
+            }
+            alerts.append(alert)
+
+print(alerts.items())
