@@ -1,51 +1,59 @@
 from pathlib import Path
 
-detectionField = "severity"
-detectionValue = "ERROR"
 
-events = []
+detection_field = "severity"
+detection_value = "ERROR"
+
 rules = [
     {
         "name": "Failed Login",
         "field": "action",
-        "value": "failed_login"
+        "value": "failed_login",
     },
     {
         "name": "Error Event",
         "field": "severity",
-        "value": "ERROR"
+        "value": "ERROR",
     },
     {
         "name": "Blocked Action",
         "field": "action",
-        "value": "blocked"
-    }
+        "value": "blocked",
+    },
 ]
-alerts = []
 
 log_path = Path(__file__).parent / "security.log"
 
-with log_path.open("r", encoding="utf-8") as log_file:
-    for line in log_file:
-        if not line.strip():
-            continue
 
-        parts = line.strip().split()
+def load_logs():
+    events = []
 
-        if len(parts) < 6:
-            print(f"Skipping malformed line: {line.strip()}")
-            continue
+    with log_path.open("r", encoding="utf-8") as log_file:
+        for line in log_file:
+            if not line.strip():
+                continue
 
-        event = {
-            "date": parts[0],
-            "time": parts[1],
-            "severity": parts[2],
-            "user": parts[3].split("=")[1],
-            "action": parts[4].split("=")[1],
-            "src_ip": parts[5].split("=")[1],
-        }
+            parts = line.strip().split()
 
-        events.append(event)
+            if len(parts) < 6:
+                print(f"Skipping malformed line: {line.strip()}")
+                continue
+
+            event = {
+                "date": parts[0],
+                "time": parts[1],
+                "severity": parts[2],
+                "user": parts[3].split("=")[1],
+                "action": parts[4].split("=")[1],
+                "src_ip": parts[5].split("=")[1],
+            }
+
+            events.append(event)
+
+    return events
+
+
+events = load_logs()
 
 severity_counts = {}
 
@@ -56,6 +64,7 @@ for event in events:
         severity_counts[severity] += 1
     else:
         severity_counts[severity] = 1
+
 
 ip_count = {}
 
@@ -69,6 +78,7 @@ for event in events:
 
 for ip, count in ip_count.items():
     print(f"IP: {ip} Count: {count}")
+
 
 failed_login_counts = {}
 
@@ -87,30 +97,21 @@ for ip, count in failed_login_counts.items():
 
 
 for event in events:
-    if event[detectionField] == detectionValue:
+    if event[detection_field] == detection_value:
         print(event)
 
 
-for rule in rules:
-    for event in events:
-        if event[rule["field"]] == rule["value"]:
-            print(f'ALERT:{rule["name"]}')
-            print(event)
-
-
-alert = {
-    "rule_name" : rule["name"],
-    "event" : event
-}
-alerts.append(alert)
+alerts = []
 
 for rule in rules:
     for event in events:
         if event[rule["field"]] == rule["value"]:
             alert = {
-                "rule_name" : rule["name"],
-                "event" : event
+                "rule_name": rule["name"],
+                "event": event,
             }
+
             alerts.append(alert)
 
-print(alerts.items())
+for alert in alerts:
+    print(alert)
