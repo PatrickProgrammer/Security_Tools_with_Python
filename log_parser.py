@@ -6,7 +6,14 @@ log_path = Path(__file__).parent / "security.log"
 
 with log_path.open("r", encoding="utf-8") as log_file:
     for line in log_file:
+        if not line.strip():
+            continue
+
         parts = line.strip().split()
+
+        if len(parts) < 6:
+            print(f"Skipping malformed line: {line.strip()}")
+            continue
 
         event = {
             "date": parts[0],
@@ -14,12 +21,13 @@ with log_path.open("r", encoding="utf-8") as log_file:
             "severity": parts[2],
             "user": parts[3].split("=")[1],
             "action": parts[4].split("=")[1],
-            "src_ip": parts[5].split("=")[1]
+            "src_ip": parts[5].split("=")[1],
         }
-        events.append(event)  
-          
+
+        events.append(event)
+
 severity_counts = {}
-  
+
 for event in events:
     severity = event["severity"]
 
@@ -27,7 +35,6 @@ for event in events:
         severity_counts[severity] += 1
     else:
         severity_counts[severity] = 1
-
 
 ip_count = {}
 
@@ -40,7 +47,19 @@ for event in events:
         ip_count[src_ip] = 1
 
 for ip, count in ip_count.items():
-    if count >= 0:
-        print(f"IP:{ip} Count: {count}")
+    print(f"IP: {ip} Count: {count}")
 
-        
+failed_login_counts = {}
+
+for event in events:
+    if event["action"] == "failed_login":
+        src_ip = event["src_ip"]
+
+        if src_ip in failed_login_counts:
+            failed_login_counts[src_ip] += 1
+        else:
+            failed_login_counts[src_ip] = 1
+
+for ip, count in failed_login_counts.items():
+    if count >= 2:
+        print(f"ALERT: {ip} had {count} failed login attempts")

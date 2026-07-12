@@ -2,3 +2,5 @@
 2026-07-11 14:33:02 WARNING user=admin action=failed_login src_ip=10.0.0.25
 2026-07-11 14:33:15 ERROR user=unknown action=blocked src_ip=10.0.0.25
 2026-07-11 14:35:40 INFO user=sarah action=logout src_ip=192.168.1.15
+2026-07-11 14:36:02 WARNING user=admin action=failed_login src_ip=10.0.0.25
+
