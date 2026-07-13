@@ -1,10 +1,9 @@
 from pathlib import Path
 
 
-detection_field = "severity"
-detection_value = "ERROR"
+LOG_PATH = Path(__file__).parent / "security.log"
 
-rules = [
+RULES = [
     {
         "name": "Failed Login",
         "field": "action",
@@ -22,71 +21,69 @@ rules = [
     },
 ]
 
-log_path = Path(__file__).parent / "security.log"
 
-
-def load_logs():
+def load_logs(log_path):
     events = []
 
     with log_path.open("r", encoding="utf-8") as log_file:
-        for line in log_file:
-            if not line.strip():
+        for line_number, line in enumerate(log_file, start=1):
+            cleaned_line = line.strip()
+
+            if not cleaned_line:
                 continue
 
-            parts = line.strip().split()
+            parts = cleaned_line.split()
 
             if len(parts) < 6:
-                print(f"Skipping malformed line: {line.strip()}")
+                print(
+                    f"Skipping malformed line {line_number}: "
+                    f"{cleaned_line}"
+                )
                 continue
 
-            event = {
-                "date": parts[0],
-                "time": parts[1],
-                "severity": parts[2],
-                "user": parts[3].split("=")[1],
-                "action": parts[4].split("=")[1],
-                "src_ip": parts[5].split("=")[1],
-            }
+            try:
+                event = {
+                    "date": parts[0],
+                    "time": parts[1],
+                    "severity": parts[2],
+                    "user": parts[3].split("=", 1)[1],
+                    "action": parts[4].split("=", 1)[1],
+                    "src_ip": parts[5].split("=", 1)[1],
+                }
+
+            except IndexError:
+                print(
+                    f"Skipping malformed fields on line {line_number}: "
+                    f"{cleaned_line}"
+                )
+                continue
 
             events.append(event)
 
     return events
 
 
-events = load_logs()
+def count_field(events, field):
+    counts = {}
 
-def count_severity(events):
-    severity_counts = {}
     for event in events:
-        severity = event["severity"]
+        value = event[field]
 
-        if severity in severity_counts:
-            severity_counts[severity] += 1
+        if value in counts:
+            counts[value] += 1
         else:
-            severity_counts[severity] = 1
+            counts[value] = 1
 
-    return severity_counts
-
-severity_counts = count_severity(events)
-
-ip_count = {}
-
-for event in events:
-    src_ip = event["src_ip"]
-
-    if src_ip in ip_count:
-        ip_count[src_ip] += 1
-    else:
-        ip_count[src_ip] = 1
-
-for ip, count in ip_count.items():
-    print(f"IP: {ip} Count: {count}")
+    return counts
 
 
-failed_login_counts = {}
+def count_failed_logins(events):
+    failed_login_counts = {}
 
-for event in events:
-    if event["action"] == "failed_login":
+    for event in events:
+        if event["action"] != "failed_login":
+            continue
+
         src_ip = event["src_ip"]
 
         if src_ip in failed_login_counts:
@@ -94,27 +91,68 @@ for event in events:
         else:
             failed_login_counts[src_ip] = 1
 
-for ip, count in failed_login_counts.items():
-    if count >= 2:
-        print(f"ALERT: {ip} had {count} failed login attempts")
+    return failed_login_counts
 
 
-for event in events:
-    if event[detection_field] == detection_value:
-        print(event)
+def detect_alerts(events, rules):
+    alerts = []
+
+    for rule in rules:
+        rule_field = rule["field"]
+        rule_value = rule["value"]
+
+        for event in events:
+            if event.get(rule_field) == rule_value:
+                alert = {
+                    "rule_name": rule["name"],
+                    "event": event,
+                }
+
+                alerts.append(alert)
+
+    return alerts
 
 
-alerts = []
+def main():
+    events = load_logs(LOG_PATH)
 
-for rule in rules:
-    for event in events:
-        if event[rule["field"]] == rule["value"]:
-            alert = {
-                "rule_name": rule["name"],
-                "event": event,
-            }
+    severity_counts = count_field(events, "severity")
+    ip_counts = count_field(events, "src_ip")
+    user_counts = count_field(events, "user")
+    action_counts = count_field(events, "action")
 
-            alerts.append(alert)
+    failed_login_counts = count_failed_logins(events)
+    alerts = detect_alerts(events, RULES)
 
-for alert in alerts:
-    print(alert)
+    print("\nSeverity counts:")
+    for severity, count in severity_counts.items():
+        print(f"{severity}: {count}")
+
+    print("\nSource IP counts:")
+    for ip, count in ip_counts.items():
+        print(f"{ip}: {count}")
+
+    print("\nUser counts:")
+    for user, count in user_counts.items():
+        print(f"{user}: {count}")
+
+    print("\nAction counts:")
+    for action, count in action_counts.items():
+        print(f"{action}: {count}")
+
+    print("\nFailed-login detections:")
+    for ip, count in failed_login_counts.items():
+        if count >= 2:
+            print(
+                f"ALERT: {ip} had {count} failed login attempts"
+            )
+
+    print("\nRule alerts:")
+    for alert in alerts:
+        print(f'Rule: {alert["rule_name"]}')
+        print(f'Event: {alert["event"]}')
+        print()
+
+
+if __name__ == "__main__":
+    main()
