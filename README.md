@@ -1,6 +1,9 @@
-# passgen
+# Personal Development: Cybersecurity Tools using Python
 
+This repo contains mostly Python-written code.
 
-This is an easy python cybersecurity project
+Focuses on:
+- Automations
+- Parsing logs and detection
+- Extracting content from files
 
-Generating random password from alphabet (A-Z), numbers (0-9) and punctuation (!@#$)
